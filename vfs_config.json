@@ -1,0 +1,106 @@
+{
+  "_readme": "Selectors are Playwright selectors. Patterns are case-insensitive Python regexes matched against the page's visible text (lowercased, whitespace collapsed). Anything marked VERIFY is a best guess: confirm it with `python monitor.py --headed --pause --dry-run`. Add \"disabled\": true to a step to skip it.",
+  "default_timeout_ms": 20000,
+
+  "dismiss_selectors": [
+    "#onetrust-accept-btn-handler",
+    "button:has-text('Accept All Cookies')",
+    "button:has-text('Accept All')"
+  ],
+
+  "login": {
+    "open_login": [
+      "a:has-text('Sign In')",
+      "button:has-text('Sign In')",
+      "a:has-text('Login')",
+      "button:has-text('Login')",
+      "a:has-text('Existing User')"
+    ],
+    "username": [
+      "input[type='email']",
+      "input[formcontrolname='username']",
+      "input[name*='email' i]",
+      "input[id*='email' i]",
+      "input[name*='user' i]"
+    ],
+    "password": ["input[type='password']"],
+    "submit": [
+      "button[type='submit']",
+      "button:has-text('Sign In')",
+      "button:has-text('Login')"
+    ],
+    "logged_in": [
+      ":is(button, a):has-text('Start New Booking')",
+      ":is(button, a):has-text('Sign Out')",
+      ":is(button, a):has-text('Logout')",
+      ":is(button, a):has-text('Log out')"
+    ],
+    "error": ["mat-error", "[role='alert']", ".alert-danger", ".error-message"]
+  },
+
+  "steps": [
+    {
+      "name": "Start a new booking (VERIFY)",
+      "action": "click",
+      "selector": ":is(button, a):has-text('Start New Booking')"
+    },
+    {
+      "name": "Choose application centre (VERIFY option text)",
+      "action": "select",
+      "selector": ":is(mat-select, select) >> nth=0",
+      "option": "Atlanta"
+    },
+    {
+      "name": "Choose service category (VERIFY option text)",
+      "action": "select",
+      "selector": ":is(mat-select, select) >> nth=1",
+      "option": "Passport"
+    },
+    {
+      "name": "Let the availability message load",
+      "action": "sleep",
+      "ms": 3000
+    }
+  ],
+
+  "slot_patterns": [
+    "earliest available (?:appointment )?slot[^0-9]{0,60}\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{2,4}",
+    "earliest available (?:appointment )?(?:slot|date)[^0-9]{0,60}(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* \\d{1,2}",
+    "\\b[1-9]\\d* (?:appointment )?slots? (?:are )?available"
+  ],
+
+  "no_slot_patterns": [
+    "no (?:appointment )?slots? (?:are )?(?:currently )?available",
+    "no appointments? (?:are )?(?:currently )?available",
+    "no available (?:appointment|slot)s?",
+    "currently no (?:appointment|slot)s?",
+    "fully booked"
+  ],
+
+  "slot_selectors": [
+    ".mat-calendar-body-cell:not(.mat-calendar-body-disabled)",
+    "input[type='radio'][name*='slot' i]:not([disabled])"
+  ],
+
+  "block_patterns": [
+    "access denied",
+    "access restricted",
+    "verify you are human",
+    "checking your browser",
+    "just a moment\\.\\.\\.",
+    "attention required",
+    "error 1020",
+    "you have been blocked",
+    "too many requests",
+    "unusual (?:traffic|activity)",
+    "request (?:was )?blocked",
+    "403201"
+  ],
+
+  "otp_patterns": [
+    "one[- ]time password",
+    "\\botp\\b",
+    "verification code",
+    "enter the code"
+  ]
+}
