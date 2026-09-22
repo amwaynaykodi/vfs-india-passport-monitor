@@ -2,9 +2,9 @@ name: VFS India Passport Appointment Monitor
 
 on:
   schedule:
-    # GitHub's minimum scheduled interval is 5 minutes.
-    - cron: "*/5 * * * *"
-      timezone: "America/New_York"
+    # GitHub often starts scheduled runs late (or skips them) under load.
+    # Each run is billed as at least 1-2 minutes, so watch usage on a private repo.
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -12,12 +12,12 @@ permissions:
 
 concurrency:
   group: vfs-passport-monitor
-  cancel-in-progress: true
+  cancel-in-progress: false # never kill a run that may be sending an alert
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -27,27 +27,70 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+          cache: pip
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python -m playwright install --with-deps chromium
+
+      - name: Get Playwright version
+        id: pw
+        run: |
+          echo "version=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: python -m playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: python -m playwright install-deps chromium
+
+      # State (last status, alert times) carries over between runs so you get
+      # one email per new slot instead of one every run.
+      - name: Restore monitor state
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: vfs-state-${{ github.run_id }}
+          restore-keys: vfs-state-
 
       - name: Run VFS monitor
+        id: monitor
         env:
           VFS_USERNAME: ${{ secrets.VFS_USERNAME }}
           VFS_PASSWORD: ${{ secrets.VFS_PASSWORD }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          # Optional repository variables; empty values fall back to defaults.
           VFS_BOOKING_URL: ${{ vars.VFS_BOOKING_URL }}
+          SLOT_ALERT_REPEAT_MINUTES: ${{ vars.SLOT_ALERT_REPEAT_MINUTES }}
+          DEGRADED_AFTER_RUNS: ${{ vars.DEGRADED_AFTER_RUNS }}
+          DEGRADED_REPEAT_HOURS: ${{ vars.DEGRADED_REPEAT_HOURS }}
         run: python monitor.py
 
+      - name: Save monitor state
+        if: always() && hashFiles('state/state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: vfs-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # Screenshot + HTML contain your personal details: keep this repo private.
       - name: Upload diagnostics
-        if: ${{ failure() }}
+        if: failure() || steps.monitor.outputs.diagnostics == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: vfs-monitor-diagnostics
+          name: vfs-monitor-diagnostics-${{ github.run_id }}
           path: artifacts/
           retention-days: 3
+          if-no-files-found: ignore
