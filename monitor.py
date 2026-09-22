@@ -38,7 +38,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 log = logging.getLogger("vfs-monitor")
 
-DEFAULT_URL = "https://visa.vfsglobal.com/usa/en/ind/login"
+DEFAULT_URL = "https://visa.vfsglobal.com/usa/en/eoi/login"
 ARTIFACT_DIR = Path("artifacts")
 SCREENSHOT = ARTIFACT_DIR / "vfs-status.png"
 PAGE_HTML = ARTIFACT_DIR / "vfs-status.html"
