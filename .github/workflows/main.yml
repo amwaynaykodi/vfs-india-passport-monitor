@@ -71,8 +71,9 @@ jobs:
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          # Optional repository variables; empty values fall back to defaults.
-          VFS_BOOKING_URL: ${{ vars.VFS_BOOKING_URL }}
+          # Read from a repository Variable or a Secret, whichever you set.
+          # Empty values fall back to the defaults in monitor.py.
+          VFS_BOOKING_URL: ${{ vars.VFS_BOOKING_URL || secrets.VFS_BOOKING_URL }}
           SLOT_ALERT_REPEAT_MINUTES: ${{ vars.SLOT_ALERT_REPEAT_MINUTES }}
           DEGRADED_AFTER_RUNS: ${{ vars.DEGRADED_AFTER_RUNS }}
           DEGRADED_REPEAT_HOURS: ${{ vars.DEGRADED_REPEAT_HOURS }}
