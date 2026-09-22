@@ -38,7 +38,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 log = logging.getLogger("vfs-monitor")
 
-DEFAULT_URL = "https://services.vfsglobal.com/usa/en/ind/"
+DEFAULT_URL = "https://visa.vfsglobal.com/usa/en/ind/login"
 ARTIFACT_DIR = Path("artifacts")
 SCREENSHOT = ARTIFACT_DIR / "vfs-status.png"
 PAGE_HTML = ARTIFACT_DIR / "vfs-status.html"
@@ -292,18 +292,25 @@ def login(page: Page, cfg: dict[str, Any], s: Settings) -> Result | None:
         log.info("Already logged in")
         return None
 
-    password = wait_visible(page, lg["password"], 5_000)
+    # The VFS login page is an Angular app that can take a while to render the form.
+    password = wait_visible(page, lg["password"], 20_000)
     if password is None:
         opener = wait_visible(page, lg["open_login"], 3_000)
         if opener is not None:
+            log.info("No login form yet; clicking a sign-in link")
             opener.click()
             settle(page)
-        password = wait_visible(page, lg["password"], 10_000)
+            password = wait_visible(page, lg["password"], 20_000)
     if password is None:
         if visible_now(page, lg["logged_in"]):
             return None
+        try:
+            title = one_line(page.title(), 80)
+        except PlaywrightError:
+            title = "?"
         return (detect_block(page, cfg, check_frames=True)
-                or Result(Status.LOGIN_FAILED, "Could not find the login form"))
+                or Result(Status.LOGIN_FAILED,
+                          f"Could not find the login form on '{title}' ({page.url})"))
 
     username = wait_visible(page, lg["username"], 3_000)
     if username is None:
@@ -418,6 +425,9 @@ def classify(page: Page, cfg: dict[str, Any]) -> Result:
 
 def check(page: Page, cfg: dict[str, Any], s: Settings) -> Result:
     log.info("Opening %s", s.url)
+    if s.url.rstrip("/").endswith("/usa/en/ind") and "services." in s.url:
+        log.warning("VFS_BOOKING_URL is the information page, which has no login form. "
+                    "Use the login page, e.g. %s", DEFAULT_URL)
     response = page.goto(s.url, wait_until="domcontentloaded")
     settle(page, 2_000)
 
